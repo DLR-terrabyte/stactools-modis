@@ -57,6 +57,14 @@ COLLECTION_FOOTPRINT_METADATA: Dict[str, Dict[str, Any]] = {
         "sin_tile_pixels": 2400,
         "footprint_assets": [f"sur_refl_b0{b}" for b in range(1, 8)],
     },
+    "09GA": {
+        "sin_tile_pixels": 2400,
+        "footprint_assets": [f"sur_refl_b0{b}" for b in range(1, 8)],
+    },
+    "09GQ": {
+        "sin_tile_pixels": 4800,
+        "footprint_assets": [f"sur_refl_b0{b}" for b in range(1, 3)],
+    },
     "10A1": {
         "sin_tile_pixels": 2400,
         "footprint_assets": ["NDSI_Snow_Cover", "Snow_Albedo_Daily_Tile"],
@@ -71,6 +79,18 @@ COLLECTION_FOOTPRINT_METADATA: Dict[str, Dict[str, Any]] = {
     "13A1": {
         "sin_tile_pixels": 2400,
         "footprint_assets": ["500m_16_days_NDVI"]
+    },
+    "13A2": {
+        "sin_tile_pixels": 1200,
+        "footprint_assets": ["1km_16_days_NDVI"]
+    },
+    "13A3": {
+        "sin_tile_pixels": 1200,
+        "footprint_assets": ["1km_monthly_NDVI"]
+    },
+    "13Q1": {
+        "sin_tile_pixels": 4800,
+        "footprint_assets": ["250m_16_days_NDVI"]
     },
     "15A2H": {
         "sin_tile_pixels": 2400,
