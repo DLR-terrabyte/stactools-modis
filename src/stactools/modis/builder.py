@@ -333,8 +333,12 @@ class ModisBuilder(RasterioBuilder):
     def properties(self, asset_infos: Dict[str, AssetInfo]) -> Object:
         """Returns extra properties for the item."""
         assert self.metadata
-        fragments = self.fragments()
-        properties = fragments.item()
+        properties = {}
+        try:
+            fragments = self.fragments()
+            properties = fragments.item()
+        except Exception as e:
+            pass
         properties["start_datetime"] = pystac.utils.datetime_to_str(
             self.metadata.start_datetime
         )
