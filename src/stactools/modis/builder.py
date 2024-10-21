@@ -38,6 +38,7 @@ class ModisBuilder(RasterioBuilder):
         self,
         read_href_modifier: Optional[ReadHrefModifier] = None,
         skip_creating_cogs_if_missing_hdf: bool = False,
+        cmr_xml: bool = False,
     ):
         """Creates a new modis builder.
 
@@ -52,6 +53,7 @@ class ModisBuilder(RasterioBuilder):
         )
         self.metadata = None
         self.cog_tags = {}
+        self.cmr_xml = cmr_xml
         self.skip_creating_cogs_if_missing_hdf = skip_creating_cogs_if_missing_hdf
 
     def add_href(
@@ -232,7 +234,10 @@ class ModisBuilder(RasterioBuilder):
             title=XML_ASSET_TITLE,
         )
         self.add_asset(XML_ASSET_KEY, asset)
-        self.metadata = Metadata.from_xml_href(href, self.read_href_modifier)
+        if self.cmr_xml:
+            self.metadata = Metadata.from_cmr_xml_href(href, self.read_href_modifier)
+        else:
+            self.metadata = Metadata.from_xml_href(href, self.read_href_modifier)
 
     def create_item(self, id: Optional[str] = None) -> Item:
         """Creates a new pystac Item.

@@ -95,6 +95,7 @@ def create_item(
     create_cogs: bool = False,
     raster_footprint: bool = False,
     read_href_modifier: Optional[ReadHrefModifier] = None,
+    cmr_xml: bool = False,
 ) -> Item:
     """Creates a STAC Item from MODIS data.
 
@@ -109,12 +110,14 @@ def create_item(
             hull of valid raster data. Has no effect if `create_cogs` is False.
         read_href_modifier (Callable[[str], str]): An optional function to
             modify the href (e.g. to add a token to a url)
+        cmr_xml (bool): The CMR metadata format is used (default: False)
 
     Returns:
         pystac.Item: A STAC Item representing this MODIS image.
     """
     builder = ModisBuilder(
         read_href_modifier=read_href_modifier,
+        cmr_xml=cmr_xml,
     )
     builder.add_hdf_or_xml_href(
         href, cog_directory=cog_directory, create_cogs=create_cogs

@@ -54,6 +54,155 @@ class Metadata:
     collection: str
 
     @classmethod
+    def from_cmr_xml_href(
+        cls, href: str, read_href_modifier: Optional[ReadHrefModifier] = None
+    ) -> "Metadata":
+        """Reads metadat from an XML href.
+
+        Args:
+            href (str): The href of the xml metadata file
+            read_href_modifier (Optional[Callable[[str], str]]): Optional
+                function to modify the read href
+
+        Returns:
+            Metadata: Information that will map to Item attributes.
+        """
+
+        def missing_element(attribute: str) -> Callable[[str], Exception]:
+            def get_exception(xpath: str) -> Exception:
+                return MissingElement(
+                    f"Could not find attribute `{attribute}` at xpath '{xpath}' at href {href}"
+                )
+
+            return get_exception
+
+        if read_href_modifier:
+            read_href = read_href_modifier(href)
+        else:
+            read_href = href
+        with fsspec.open(read_href) as file:
+            root = XmlElement(etree.parse(file, base_url=href).getroot())
+
+        #metadata = root.find_or_throw(
+        #    "Granule", missing_element("Granule")
+        #)
+        metadata = root
+        id = ".".join(
+            os.path.splitext(
+                metadata.find_text_or_throw(
+                    "GranuleUR", missing_element("id")
+                )
+            )[0].split(".")[0:-1]
+        )
+        product = metadata.find_text_or_throw(
+            "Collection/ShortName", missing_element("product")
+        )
+        version = metadata.find_text_or_throw(
+                "Collection/VersionId", missing_element("version")
+        )
+        if version[0] == '0':
+            version = version[1:]
+
+        version = utils.version_string(
+            version
+        )
+
+        start_datetime = metadata.find_text_or_throw(
+            "Temporal/RangeDateTime/BeginningDateTime", missing_element("start_datetime")
+        )
+        start_datetime = datetime.datetime.fromisoformat(f"{start_datetime}")
+        end_datetime = metadata.find_text_or_throw(
+            "Temporal/RangeDateTime/EndingDateTime", missing_element("end_date")
+        )
+        end_datetime = datetime.datetime.fromisoformat(f"{end_datetime}")
+
+        created = datetime.datetime.fromisoformat(
+            metadata.find_text_or_throw(
+                "DataGranule/ProductionDateTime", missing_element("created")
+            )
+        )
+        updated = datetime.datetime.fromisoformat(
+            metadata.find_text_or_throw("LastUpdate", missing_element("updated"))
+        )
+
+        psas = metadata.findall("AdditionalAttributes/AdditionalAttribute")
+        qa_percent_not_produced_cloud = None
+        for psa in psas:
+            name = psa.find_text_or_throw("Name", missing_element("PSAName"))
+            value = psa.find_text_or_throw("Values/Value", missing_element("PSAValue"))
+            if name == "HORIZONTALTILENUMBER":
+                horizontal_tile = int(value)
+            elif name == "VERTICALTILENUMBER":
+                vertical_tile = int(value)
+            elif name == "TileID":
+                tile_id = value
+            elif name == "QAPERCENTNOTPRODUCEDCLOUD":
+                qa_percent_not_produced_cloud = int(value)
+
+        qa_percent_cloud_cover: Dict[str, int] = {}
+        measured_parameters = metadata.findall(
+            "MeasuredParameters/MeasuredParameter"
+        )
+        for measured_parameter in measured_parameters:
+            name = measured_parameter.find_text_or_throw(
+                "ParameterName", missing_element("ParameterName")
+            ).replace(" ", "_")
+            band_qa_percent_cloud_cover = measured_parameter.find_text(
+                "QAStats/QAPercentCloudCover"
+            )
+            if band_qa_percent_cloud_cover:
+                qa_percent_cloud_cover[name] = int(band_qa_percent_cloud_cover)
+
+        if qa_percent_cloud_cover and qa_percent_not_produced_cloud is None:
+            assert len(set(qa_percent_cloud_cover.values())) == 1, (
+                f"Mutiple, different 'qa_percent_cloud_cover' values exist "
+                f"in href={href}. This is not supported at this time."
+            )
+            qa_percent_not_produced_cloud = next(iter(qa_percent_cloud_cover.values()))
+
+        platform_elements = metadata.findall("Platforms/Platform")
+        platforms = [
+            platform.find_text_or_throw(
+                "ShortName", missing_element("platform_short_name")
+            ).lower()
+            for platform in platform_elements
+        ]
+        instruments = list(
+            set(
+                platform.find_text_or_throw(
+                    "Instruments/Instrument/ShortName",
+                    missing_element("instrument_short_name"),
+                ).lower()
+                for platform in platform_elements
+            )
+        )
+
+        collection = cls._collection(product)
+        geometry, bbox = cls._geometry_and_bbox(
+            collection, horizontal_tile, vertical_tile
+        )
+
+        return Metadata(
+            id=id,
+            product=product,
+            version=version,
+            geometry=geometry,
+            bbox=bbox,
+            start_datetime=start_datetime,
+            end_datetime=end_datetime,
+            created=created,
+            updated=updated,
+            qa_percent_not_produced_cloud=qa_percent_not_produced_cloud,
+            qa_percent_cloud_cover=qa_percent_cloud_cover,
+            horizontal_tile=horizontal_tile,
+            vertical_tile=vertical_tile,
+            tile_id=tile_id,
+            platforms=platforms,
+            instruments=instruments,
+            collection=collection,
+        )
+
+    @classmethod
     def from_xml_href(
         cls, href: str, read_href_modifier: Optional[ReadHrefModifier] = None
     ) -> "Metadata":
